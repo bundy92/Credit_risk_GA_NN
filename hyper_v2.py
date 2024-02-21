@@ -13,6 +13,9 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
 def load_data(file_path):
     try:
         data = pd.read_csv(file_path)
@@ -42,10 +45,10 @@ def preprocess_data(data):
 def train_pd_model(X_train, y_train, best_model_params=None):
     if best_model_params:
         # Use best_model_params for training if provided
-        pd_model = LogisticRegression(**best_model_params)
+        pd_model = LogisticRegression(**best_model_params, max_iter=1000, solver='liblinear')
     else:
         # Train with default parameters if best_model_params is not provided
-        pd_model = LogisticRegression()
+        pd_model = LogisticRegression(max_iter=1000, solver='liblinear')
     pd_model.fit(X_train, y_train)
     return pd_model
 
@@ -82,14 +85,14 @@ def train_neural_network(X_train, y_train, X_val, y_val, input_size, hidden_size
     X_train_scaled = scaler.fit_transform(X_train)
     X_val_scaled = scaler.transform(X_val)
 
-    # Convert scaled data to PyTorch tensors
-    X_train_tensor = torch.tensor(X_train_scaled, dtype=torch.float32)
-    y_train_tensor = torch.tensor(y_train.values, dtype=torch.float32).view(-1)
-    X_val_tensor = torch.tensor(X_val_scaled, dtype=torch.float32)
-    y_val_tensor = torch.tensor(y_val.values, dtype=torch.float32).view(-1)
+    # Convert scaled data to PyTorch tensors and move to GPU
+    X_train_tensor = torch.tensor(X_train_scaled, dtype=torch.float32).to(device)
+    y_train_tensor = torch.tensor(y_train.values, dtype=torch.float32).view(-1).to(device)
+    X_val_tensor = torch.tensor(X_val_scaled, dtype=torch.float32).to(device)
+    y_val_tensor = torch.tensor(y_val.values, dtype=torch.float32).view(-1).to(device)
 
-    # Define the model
-    model = NeuralNetwork(input_size, hidden_sizes, output_size)
+    # Define the model and move it to GPU
+    model = NeuralNetwork(input_size, hidden_sizes, output_size).to(device)
     criterion = nn.BCELoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
@@ -107,7 +110,7 @@ def train_neural_network(X_train, y_train, X_val, y_val, input_size, hidden_size
         model.eval()
         with torch.no_grad():
             outputs_val = model(X_val_tensor)
-            auc_roc = roc_auc_score(y_val, outputs_val.cpu().numpy())
+            auc_roc = roc_auc_score(y_val, outputs_val.cpu().numpy())  # Move back to CPU for metric calculation
 
         # Update the best model
         if auc_roc > best_auc_roc:

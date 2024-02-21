@@ -3,14 +3,23 @@ import sys
 
 import streamlit as st
 import pandas as pd
+import numpy as np
 import sklearn
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import roc_auc_score, accuracy_score, precision_score, recall_score, f1_score, auc
+from sklearn.metrics import roc_auc_score, accuracy_score, precision_score, recall_score, f1_score, auc, roc_curve
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.metrics import roc_curve
+from sklearn.cluster import AgglomerativeClustering
+from sklearn.tree import DecisionTreeClassifier
+from scipy.cluster import hierarchy
+import shap
+import matplotlib.pyplot as plt
+from matplotlib.sankey import Sankey
+import seaborn as sns
 from hyper_v2 import load_data, train_pd_model, evaluate_pd_model, preprocess_data, genetic_algorithm_hyperparameter_optimization
+
+st.set_option('deprecation.showPyplotGlobalUse', False)
 
 # Main function
 def main():
@@ -85,6 +94,41 @@ def main():
                 st.sidebar.write("F1-score:", f1)
                 st.sidebar.write("AUC-ROC:", auc_roc)
 
+                # Model Interpretability Visualizations
+                st.subheader("Model Interpretability")
+
+                # Partial Dependence Plots (PDPs)
+                st.write("Partial Dependence Plots (PDPs) illustrating the impact of individual features on the predicted probability of default.")
+                feature_names = X.columns
+                shap.initjs()
+                explainer = shap.Explainer(pd_model, X_train)
+                shap_values = explainer.shap_values(X_train)
+                shap.summary_plot(shap_values, X_train, feature_names=feature_names, show=False)
+                st.pyplot(bbox_inches='tight', pad_inches=0)
+
+                # SHAP Summary Plot
+                st.write("SHAP (SHapley Additive exPlanations) summary plot providing a global view of feature importances and their effects on model predictions.")
+                shap.summary_plot(shap_values, X_train, feature_names=feature_names, plot_type='bar', show=False)
+                st.pyplot(bbox_inches='tight', pad_inches=0)
+
+                # Risk Segmentation Visualizations
+                st.subheader("Risk Segmentation")
+
+                # # Cluster Analysis Dendrogram
+                st.write("Cluster analysis dendrogram demonstrating the hierarchical structure of borrower segments based on their credit risk profiles.")
+                st.warning("Cluster analysis removed as it takes too long to compute.")  
+                # linkage_matrix = hierarchy.linkage(X_train, method='ward')  # Compute the linkage matrix
+                # plt.figure(figsize=(10, 6))
+                # plt.title('Hierarchical Clustering Dendrogram')
+                # plt.xlabel('Sample Index')
+                # plt.ylabel('Distance')
+                # hierarchy.dendrogram(linkage_matrix, ax=plt.gca())
+                # st.pyplot(bbox_inches='tight', pad_inches=0)
+
+
+                # Sankey Diagram
+                st.write("Sankey diagram visualizing the flow of borrowers across different risk categories or credit scoring tiers.")
+                st.warning("Sankey diagram implementation code goes here.")  # Add your Sankey diagram code
 
                 # Display an explanation for the user
                 st.subheader("Model Evaluation Metrics")
@@ -125,6 +169,32 @@ def main():
                     # If coefficients are not available, inform the user
                     st.write("Feature importance is not available for this model.")
 
+        # Sidebar controls for displaying the Sankey diagram
+                    
+        # Assuming you have your data in a format suitable for constructing the Sankey diagram
+        # For example, a list of tuples where each tuple represents a flow (source, target, value)
+
+        # # Example data
+        # flows = [
+        #     ('Low Risk', 'Approved', 500),
+        #     ('Low Risk', 'Rejected', 50),
+        #     ('Medium Risk', 'Approved', 300),
+        #     ('Medium Risk', 'Rejected', 100),
+        #     ('High Risk', 'Approved', 50),
+        #     ('High Risk', 'Rejected', 200),
+        # ]
+        # display_sankey = st.sidebar.checkbox("Display Sankey Diagram")
+
+        # if display_sankey:
+        #     st.subheader("Sankey Diagram")
+
+        #     # Create Sankey diagram
+        #     sankey = Sankey(flows=flows, scale=0.01)  # Scale adjusts the width of the flow paths
+        #     fig, ax = plt.subplots()
+        #     sankey.finish()
+            
+        #     # Show the diagram
+        #     st.pyplot(fig)
 
 if __name__ == "__main__":
     main()
