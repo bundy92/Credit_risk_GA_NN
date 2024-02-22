@@ -3,6 +3,8 @@
 import sys
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+import streamlit as st
 import sklearn
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score, accuracy_score, precision_score, recall_score, f1_score
@@ -13,8 +15,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
+# Set device.
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 
 def load_data(file_path):
     try:
@@ -126,7 +128,7 @@ def train_neural_network(X_train, y_train, X_val, y_val, input_size, hidden_size
 
 def genetic_algorithm_hyperparameter_optimization(X_train, y_train, X_val, y_val, input_size, hidden_sizes,
                                                    output_size, population_size, num_generations, mutation_rate,
-                                                   learning_rates, num_epochs):
+                                                   learning_rates, batch_sizes, num_epochs):
     def initialize_population(population_size, num_hyperparameters):
         population = []
         for _ in range(population_size):
@@ -155,7 +157,7 @@ def genetic_algorithm_hyperparameter_optimization(X_train, y_train, X_val, y_val
         return individual
 
     # Initialize population
-    population = initialize_population(population_size, len(hidden_sizes) + 1)  # Number of hyperparameters + 1 for learning rate
+    population = initialize_population(population_size, len(hidden_sizes) + 2)  # Number of hyperparameters + 2 for learning rate and batch size
 
     # Initialize best_model_params with initial model parameters
     best_auc_roc = -1
@@ -165,9 +167,10 @@ def genetic_algorithm_hyperparameter_optimization(X_train, y_train, X_val, y_val
     for generation in range(num_generations):
         fitness_values = []
         for individual_idx, individual in enumerate(population):
-            learning_rate = individual[-1]
+            learning_rate = individual[-2]
+            batch_size = int(round(individual[-1]))  # Convert batch size to integer
             model_params, auc_roc = train_neural_network(X_train, y_train, X_val, y_val, input_size, hidden_sizes,
-                                                          output_size, learning_rate, num_epochs)
+                                                          output_size, learning_rate, batch_size, num_epochs)
             fitness_values.append(auc_roc)
 
             # Update the best model
@@ -177,8 +180,6 @@ def genetic_algorithm_hyperparameter_optimization(X_train, y_train, X_val, y_val
 
             sys.stdout.write(f"\rGeneration {generation+1}/{num_generations}, Individual {individual_idx+1}/{population_size}, AUC-ROC: {auc_roc:.4f}, Best AUC-ROC: {best_auc_roc:.4f}")
             sys.stdout.flush()
-
-        #print(f"\nGeneration {generation+1}/{num_generations}, Best AUC-ROC: {best_auc_roc:.4f}")
 
         # Select parents and create new population
         new_population = []
@@ -191,6 +192,45 @@ def genetic_algorithm_hyperparameter_optimization(X_train, y_train, X_val, y_val
         population = new_population
 
     return best_model_params, best_auc_roc
+
+# Function to plot line plot
+def plot_line_plot(initial_values, optimized_values, hyperparameters):
+    plt.figure(figsize=(10, 6))
+    plt.plot(hyperparameters, initial_values, marker='o', color='blue', label='Initial Values')
+    plt.plot(hyperparameters, optimized_values, marker='o', color='orange', label='Optimized Values')
+    plt.xlabel('Hyperparameters')
+    plt.ylabel('Values')
+    plt.title('Hyperparameter Values Before and After Optimization')
+    plt.legend()
+    plt.xticks(rotation=45)
+    plt.grid(True)
+    st.pyplot()
+
+# Function to plot bar chart
+def plot_bar_chart(initial_values, optimized_values, hyperparameters):
+    plt.figure(figsize=(10, 6))
+    x = range(len(hyperparameters))
+    plt.bar(x, initial_values, width=0.4, color='blue', label='Initial Values')
+    plt.bar([i+0.4 for i in x], optimized_values, width=0.4, color='orange', label='Optimized Values')
+    plt.xlabel('Hyperparameters')
+    plt.ylabel('Values')
+    plt.title('Hyperparameter Values Before and After Optimization')
+    plt.xticks([i + 0.2 for i in x], hyperparameters, rotation=45)
+    plt.legend()
+    plt.grid(axis='y')
+    st.pyplot()
+
+# Function to plot heatmap
+def plot_heatmap(initial_values, optimized_values, hyperparameters):
+    data = [initial_values, optimized_values]
+    plt.figure(figsize=(10, 6))
+    plt.imshow(data, cmap='YlOrBr', aspect='auto')
+    plt.colorbar(label='Hyperparameter Values')
+    plt.title('Hyperparameter Values Before and After Optimization')
+    plt.xticks(range(len(hyperparameters)), hyperparameters, rotation=45)
+    plt.yticks(range(2), ['Initial Values', 'Optimized Values'])
+    st.pyplot()
+
 
 #if __name__ == "__main__":
 
