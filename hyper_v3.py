@@ -5,6 +5,7 @@ from typing import Union, Tuple, Dict, List
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 import streamlit as st
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score, accuracy_score, precision_score, recall_score, f1_score
@@ -111,6 +112,43 @@ def evaluate_pd_model(model: ClassifierMixin, X_test: np.ndarray, y_test: np.nda
     auc_roc = roc_auc_score(y_test, model.predict_proba(X_test)[:, 1])
     return accuracy, precision, recall, f1, auc_roc
 
+
+# Define the neural network model
+class NeuralNetwork(nn.Module):
+    def __init__(self, input_size, hidden_sizes, output_size):
+        """
+        Initialize the neural network.
+
+        Parameters:
+        input_size (int): Size of the input features.
+        hidden_sizes (Union[int, List[int]]): Size(s) of the hidden layer(s).
+        output_size (int): Size of the output.
+
+        Returns:
+        None
+        """
+        super(NeuralNetwork, self).__init__()
+        layers = []
+        layers.append(nn.Linear(input_size, hidden_sizes[0]))
+        layers.append(nn.ReLU())
+        for i in range(len(hidden_sizes) - 1):
+            layers.append(nn.Linear(hidden_sizes[i], hidden_sizes[i+1]))
+            layers.append(nn.ReLU())
+        layers.append(nn.Linear(hidden_sizes[-1], output_size))
+        self.model = nn.Sequential(*layers)
+
+    def forward(self, x):
+        """
+        Perform forward pass through the network.
+
+        Parameters:
+        x (torch.Tensor): Input tensor.
+
+        Returns:
+        torch.Tensor: Output tensor.
+        """
+        return torch.sigmoid(self.model(x)).squeeze()
+
 def train_neural_network(X_train: torch.Tensor, y_train: torch.Tensor, X_val: torch.Tensor, y_val: torch.Tensor,
                          input_size: int, hidden_sizes: Tuple[int], output_size: int, learning_rate: float,
                          batch_size: int, num_epochs: int, device: torch.device) -> Tuple[Dict[str, torch.Tensor], float]:
@@ -134,21 +172,7 @@ def train_neural_network(X_train: torch.Tensor, y_train: torch.Tensor, X_val: to
     best_model_params (Dict[str, torch.Tensor]): Parameters of the best model based on validation performance.
     best_auc_roc (float): Best AUC-ROC score achieved on the validation set.
     """
-    # Define the neural network model
-    class NeuralNetwork(nn.Module):
-        def __init__(self, input_size, hidden_sizes, output_size):
-            super(NeuralNetwork, self).__init__()
-            layers = []
-            layers.append(nn.Linear(input_size, hidden_sizes[0]))
-            layers.append(nn.ReLU())
-            for i in range(len(hidden_sizes) - 1):
-                layers.append(nn.Linear(hidden_sizes[i], hidden_sizes[i+1]))
-                layers.append(nn.ReLU())
-            layers.append(nn.Linear(hidden_sizes[-1], output_size))
-            self.model = nn.Sequential(*layers)
 
-        def forward(self, x):
-            return torch.sigmoid(self.model(x)).squeeze()
 
     # Scale the data using Min-Max scaling
     scaler = MinMaxScaler()
@@ -200,9 +224,20 @@ def train_neural_network(X_train: torch.Tensor, y_train: torch.Tensor, X_val: to
     print("\nTraining complete.")
     return best_model_params, best_auc_roc
 
-def genetic_algorithm_hyperparameter_optimization(X_train, y_train, X_val, y_val, input_size, hidden_sizes,
-                                                   output_size, population_size, num_generations, mutation_rate,
-                                                   learning_rates, batch_sizes, num_epochs):
+def genetic_algorithm_hyperparameter_optimization(self, 
+                                                X_train: np.ndarray, 
+                                                y_train: np.ndarray, 
+                                                X_val: np.ndarray, 
+                                                y_val: np.ndarray, 
+                                                input_size: int, 
+                                                hidden_sizes: Tuple[int],
+                                                output_size: int, 
+                                                population_size: int, 
+                                                num_generations: int, 
+                                                mutation_rate: float,
+                                                learning_rates: Tuple[float, float, float],
+                                                batch_sizes: Tuple[int, int, int], 
+                                                num_epochs: int) -> Tuple[Dict[str, Union[int, List[float]]], float, List[float], List[float]]:
     """
     Perform hyperparameter optimization using a genetic algorithm.
 
@@ -223,49 +258,16 @@ def genetic_algorithm_hyperparameter_optimization(X_train, y_train, X_val, y_val
 
     Returns:
     best_model_params (dict): Parameters of the best model found.
-    best_auc_roc (float): AUC-ROC score of the best model.
+    best_fitness (float): Fitness value of the best model.
     initial_values (list): Initial hyperparameter values.
     optimized_values (list): Optimized hyperparameter values.
     """
-    
-    # Define genetic algorithm components
-
-    def initialize_population(population_size, num_hyperparameters):
-        # Initialize population with random values
-        population = []
-        for _ in range(population_size):
-            individual = np.random.uniform(low=0.0001, high=1, size=num_hyperparameters)
-            population.append(individual)
-        return population
-
-    def select_parents(population, fitness_values):
-        # Select parents based on fitness values
-        probabilities = np.exp(fitness_values) / np.sum(np.exp(fitness_values))
-        parents_indices = np.random.choice(len(population), size=2, p=probabilities, replace=False)
-        return [population[idx] for idx in parents_indices]
-
-    def crossover(parents, crossover_rate=0.8):
-        # Apply crossover with a certain probability
-        if np.random.rand() < crossover_rate:
-            crossover_point = np.random.randint(1, len(parents[0]))
-            child1 = np.concatenate((parents[0][:crossover_point], parents[1][crossover_point:]))
-            child2 = np.concatenate((parents[1][:crossover_point], parents[0][crossover_point:]))
-            return [child1, child2]
-        else:
-            return parents
-
-    def mutate(individual, mutation_rate=0.1):
-        # Apply mutation to individual genes with a certain probability
-        for i in range(len(individual)):
-            if np.random.rand() < mutation_rate:
-                individual[i] = np.random.uniform(low=0.0001, high=1)
-        return individual
 
     # Initialize population
-    population = initialize_population(population_size, len(hidden_sizes) + 3)  # 3 additional hyperparameters for learning rate, batch size, and hidden layer sizes
+    population = self.initialize_population(population_size, len(hidden_sizes) + 3)  # 3 additional hyperparameters for learning rate, batch size, and hidden layer sizes
 
-    # Initialize best_model_params with initial model parameters
-    best_auc_roc = -1
+    # Initialize best model and fitness
+    best_fitness = -1
     best_model_params = None
 
     # Initialize initial and optimized values
@@ -282,25 +284,31 @@ def genetic_algorithm_hyperparameter_optimization(X_train, y_train, X_val, y_val
             hidden_layer_sizes = [int(round(size)) for size in hidden_sizes * individual[:-3]]  # Convert hidden layer sizes to integers
             
             # Train neural network with the extracted hyperparameters
-            model_params, auc_roc = train_neural_network(X_train, y_train, X_val, y_val, input_size, hidden_layer_sizes,
-                                              output_size, learning_rate, batch_size, num_epochs, device)
+            model_params, evaluation_metrics = train_neural_network(X_train, y_train, X_val, y_val,
+                                                                                input_size, hidden_layer_sizes, output_size,
+                                                                                learning_rate, batch_size, num_epochs)
 
-            fitness_values.append(auc_roc)
+            # Calculate fitness based on multiple evaluation metrics
+            current_fitness = sum(evaluation_metrics.values())
+            fitness_values.append(current_fitness)
 
-            # Update the best model
-            if auc_roc > best_auc_roc:
-                best_auc_roc = auc_roc
+            # Update the best model based on overall fitness
+            if current_fitness > best_fitness:
+                best_fitness = current_fitness
                 best_model_params = model_params
+                torch.save(best_model_params, './models/best_model_state_dict.pth')  # Save the best model
 
-            sys.stdout.write(f"\rGeneration {generation+1}/{num_generations}, Individual {individual_idx+1}/{population_size}, AUC-ROC: {auc_roc:.4f}, Best AUC-ROC: {best_auc_roc:.4f}")
+
+            # Modify the print statement to display all evaluation metrics and best fitness
+            sys.stdout.write(f"\rGeneration {generation+1}/{num_generations}, Individual {individual_idx+1}/{population_size}, Fitness: {current_fitness:.4f}, Best Fitness: {best_fitness:.4f}, Evaluation Metrics: {evaluation_metrics}")
             sys.stdout.flush()
 
         # Select parents and create new population
         new_population = []
         for _ in range(population_size // 2):
-            parents = select_parents(population, fitness_values)
-            offspring = crossover(parents)
-            offspring = [mutate(child, mutation_rate) for child in offspring]
+            parents = self.select_parents(population, fitness_values)
+            offspring = self.crossover(parents)
+            offspring = [self.mutate(child, mutation_rate) for child in offspring]
             new_population.extend(offspring)
 
         population = new_population
@@ -311,7 +319,7 @@ def genetic_algorithm_hyperparameter_optimization(X_train, y_train, X_val, y_val
         if generation == num_generations - 1:
             optimized_values = population[0][:-3]
 
-    return best_model_params, best_auc_roc, initial_values, optimized_values
+    return best_model_params, best_fitness, initial_values, optimized_values
 
 
 # Visualisation of the optimization process
@@ -391,6 +399,43 @@ def plot_heatmap(initial_values: List, optimized_values: List, hyperparameters: 
     fig.colorbar(im, ax=ax, label='Hyperparameter Values')
     st.pyplot(fig)
 
+def visualize_hyperparameter_space(learning_rates: List[float], batch_sizes: List[int], performance_metrics: List[float], metric_name: str = 'Accuracy') -> None:
+    """
+    Visualizes the hyperparameter space using a scatter plot.
+
+    Parameters:
+    learning_rates (List[float]): List of learning rates.
+    batch_sizes (List[int]): List of batch sizes.
+    performance_metrics (List[float]): List of performance metrics corresponding to hyperparameter combinations.
+    metric_name (str): Name of the performance metric. Default is 'Accuracy'.
+
+    Returns:
+    None
+    """
+    # Ensure all lists have the same length
+    min_length = min(len(learning_rates), len(batch_sizes), len(performance_metrics))
+    learning_rates = learning_rates[:min_length]
+    batch_sizes = batch_sizes[:min_length]
+    performance_metrics = performance_metrics[:min_length]
+
+    # Plot scatter plot of hyperparameter space
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Plot data points
+    ax.scatter(learning_rates, batch_sizes, performance_metrics, c=performance_metrics, cmap='viridis', s=100)
+
+    # Set labels and title
+    ax.set_xlabel('Learning Rate')
+    ax.set_ylabel('Batch Size')
+    ax.set_zlabel(metric_name)
+    ax.set_title('Hyperparameter Space Visualization')
+
+    # Add color bar
+    cbar = plt.colorbar(ax.scatter(learning_rates, batch_sizes, performance_metrics, c=performance_metrics, cmap='viridis'))
+    cbar.set_label(metric_name)
+
+    plt.show()
 
 # Local test case for the script.
     

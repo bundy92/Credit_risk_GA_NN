@@ -4,10 +4,11 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import auc, roc_curve
 import shap
-from hyper_v3 import load_data, train_pd_model, evaluate_pd_model, preprocess_data, genetic_algorithm_hyperparameter_optimization, plot_line_plot, plot_bar_chart, plot_heatmap
+from hyper_v3 import load_data, train_pd_model, evaluate_pd_model, preprocess_data, genetic_algorithm_hyperparameter_optimization, plot_line_plot, plot_bar_chart, plot_heatmap, visualize_hyperparameter_space
 
 # Turning off the error message
 st.set_option('deprecation.showPyplotGlobalUse', False)
+st.set_page_config(layout="wide")
 
 # Main function
 def main():
@@ -64,6 +65,10 @@ def main():
                 X_train_val, X_test, y_train_val, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
                 X_train, X_val, y_train, y_val = train_test_split(X_train_val, y_train_val, test_size=0.2, random_state=42)
                 hyperparameters = ['Learning Rate','Hidden Layer Size', 'Batch Size']  # Names of the hyperparameters
+                learning_rates = [0.001, 0.01, 0.1]
+                batch_sizes = [128, 64, 32]
+                list_of_metric_names = ["Accuracy", "Precision", "Recall", "F1-score", "AUC-ROC"]
+                hidden_sizes=[128, 64, 32]
 
                 # Perform hyperparameter optimization
                 best_model_params, best_auc_roc, initial_hyperparameters, optimized_hyperparameters = genetic_algorithm_hyperparameter_optimization(X_train, y_train, X_val, y_val,
@@ -85,6 +90,9 @@ def main():
 
                 # Plot heatmap
                 plot_heatmap(initial_hyperparameters, optimized_hyperparameters, hyperparameters)
+
+                # Plot scatter plot of the hyperparameter space
+                visualize_hyperparameter_space(learning_rates, batch_sizes, list_of_metric_names, list_of_metric_names[4])
 
                 # Check if hyperparameter optimization was successful
                 if best_model_params:

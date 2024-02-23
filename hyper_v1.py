@@ -200,7 +200,7 @@ for generation in range(num_generations):
         if auc_roc > best_auc_roc:
             best_auc_roc = auc_roc
             best_model_params = model.state_dict()
-            torch.save(best_model_params, 'best_model_state_dict.pth')  # Save the best model
+            torch.save(best_model_params, './models/best_model_state_dict.pth')  # Save the best model
 
         sys.stdout.write(f"\rGeneration {generation+1}/{num_generations}, Individual {individual_idx+1}/{population_size}, AUC-ROC: {auc_roc:.4f}, Best AUC-ROC: {best_auc_roc:.4f}")
         sys.stdout.flush()

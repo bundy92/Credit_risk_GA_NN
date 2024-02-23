@@ -5,6 +5,7 @@ from typing import Union, Tuple, Dict, List, Sequence
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 import streamlit as st
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score, accuracy_score, precision_score, recall_score, f1_score
@@ -15,11 +16,11 @@ from sklearn.base import ClassifierMixin
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import os
+os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 
 # Set device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-
 class DataLoader:
     def load_data(self, file_path: str, value: Sequence[str]) -> Union[pd.DataFrame, None]:
         """
@@ -33,13 +34,12 @@ class DataLoader:
         """
         try:
             data = pd.read_csv(file_path)
+            return data
         except FileNotFoundError:
-            print("Error: File not found. Please provide the correct file path.")
-            exit()
+            raise FileNotFoundError("Error: File not found. Please provide the correct file path.")
         except Exception as e:
-            print("An error occurred while loading the dataset:", e)
-            exit()
-        return data
+            raise Exception("An error occurred while loading the dataset:", e)
+
 
     def preprocess_data(self, data: pd.DataFrame, target_column: None) -> Tuple[pd.DataFrame, pd.Series]:
         """
@@ -100,7 +100,7 @@ class ModelTrainer:
         y_test (np.ndarray): True labels for testing.
 
         Returns:
-        accuracy (float): Accuracy of the model.
+        accuracy (float): Accuracy of the model.f
         precision (float): Precision of the model.
         recall (float): Recall of the model.
         f1 (float): F1 score of the model.
@@ -114,7 +114,43 @@ class ModelTrainer:
         auc_roc = roc_auc_score(y_test, model.predict_proba(X_test)[:, 1])
         return accuracy, precision, recall, f1, auc_roc
 
-class NeuralNetworkTrainer:
+class NeuralNetwork(nn.Module):
+
+    def __init__(self, input_size, hidden_sizes, output_size):
+        """
+        Initialize the neural network.
+
+        Parameters:
+        input_size (int): Size of the input features.
+        hidden_sizes (Union[int, List[int]]): Size(s) of the hidden layer(s).
+        output_size (int): Size of the output.
+
+        Returns:
+        None
+        """
+        super(NeuralNetwork, self).__init__()
+        layers = []
+        layers.append(nn.Linear(input_size, hidden_sizes[0]))
+        layers.append(nn.ReLU())
+        for i in range(len(hidden_sizes) - 1):
+            layers.append(nn.Linear(hidden_sizes[i], hidden_sizes[i+1]))
+            layers.append(nn.ReLU())
+        layers.append(nn.Linear(hidden_sizes[-1], output_size))
+        self.model = nn.Sequential(*layers)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Perform forward pass through the network.
+
+        Parameters:
+        x (torch.Tensor): Input tensor.
+
+        Returns:
+        torch.Tensor: Output tensor.
+        """
+        return torch.sigmoid(self.model(x)).squeeze()
+
+class NeuralNetworkTrainer(NeuralNetwork):
     @staticmethod
     def train_neural_network(self, X_train: torch.Tensor, y_train: torch.Tensor, X_val: torch.Tensor, y_val: torch.Tensor,
                             input_size: int, hidden_sizes: Tuple[int], output_size: int, learning_rate: float,
@@ -140,51 +176,44 @@ class NeuralNetworkTrainer:
         best_auc_roc (float): Best AUC-ROC score achieved on the validation set.
         """
         # Define the neural network model
-        class NeuralNetwork(nn.Module):
-            def __init__(self, input_size: int, hidden_sizes: List[int], output_size: int):
-                """
-                Initialize the neural network.
+        # class NeuralNetwork(nn.Module):
+        #     def __init__(self, input_size: int, hidden_sizes: Union[int, List[int]], output_size: int):
+        #         """
+        #         Initialize the neural network.
 
-                Parameters:
-                input_size (int): Size of the input features.
-                hidden_sizes (List[int]): List of sizes for hidden layers.
-                output_size (int): Size of the output.
+        #         Parameters:
+        #         input_size (int): Size of the input features.
+        #         hidden_sizes (Union[int, List[int]]): Size(s) of the hidden layer(s).
+        #         output_size (int): Size of the output.
 
-                Returns:
-                None
-                """
-                super(NeuralNetwork, self).__init__()
-                layers = []
-                layers.append(nn.Linear(input_size, hidden_sizes[0]))
-                layers.append(nn.ReLU())
-                for i in range(len(hidden_sizes) - 1):
-                    layers.append(nn.Linear(hidden_sizes[i], hidden_sizes[i+1]))
-                    layers.append(nn.ReLU())
-                layers.append(nn.Linear(hidden_sizes[-1], output_size))
-                self.model = nn.Sequential(*layers)
+        #         Returns:
+        #         None
+        #         """
+        #         super(NeuralNetwork, self).__init__()
+        #         if isinstance(hidden_sizes, int):
+        #             hidden_sizes = [hidden_sizes]  # Convert to list if single integer
+        #         layers = []
+        #         layers.append(nn.Linear(input_size, hidden_sizes[0]))  # Ensure hidden_sizes[0] is an integer
+        #         layers.append(nn.ReLU())
+        #         for i in range(len(hidden_sizes) - 1):
+        #             layers.append(nn.Linear(hidden_sizes[i], hidden_sizes[i+1]))
+        #             layers.append(nn.ReLU())
+        #         layers.append(nn.Linear(hidden_sizes[-1], output_size))
+        #         self.model = nn.Sequential(*layers)
+        
 
-            def forward(self, x: torch.Tensor) -> torch.Tensor:
-                """
-                Perform forward pass through the network.
-
-                Parameters:
-                x (torch.Tensor): Input tensor.
-
-                Returns:
-                torch.Tensor: Output tensor.
-                """
-                return torch.sigmoid(self.model(x)).squeeze()
 
         # Scale the data using Min-Max scaling
         scaler = MinMaxScaler()
-        X_train_scaled = scaler.fit_transform(X_train)
-        X_val_scaled = scaler.transform(X_val)
+        X_train_scaled = scaler.fit_transform(X_train.numpy())
+        X_val_scaled = scaler.transform(X_val.numpy())
+
 
         # Convert scaled data to PyTorch tensors and move to appropriate device
         X_train_tensor = torch.tensor(X_train_scaled, dtype=torch.float32).to(device)
-        y_train_tensor = torch.tensor(y_train.values, dtype=torch.float32).squeeze().to(device)
+        y_train_tensor = y_train.to(device)
         X_val_tensor = torch.tensor(X_val_scaled, dtype=torch.float32).to(device)
-        y_val_tensor = torch.tensor(y_val.values, dtype=torch.float32).view(-1, 1).to(device)      # Ensure the target size consistency
+        y_val_tensor = y_val.to(device)
 
         # Define the model and move it to appropriate device
         model = NeuralNetwork(input_size, hidden_sizes, output_size).to(device)
@@ -208,16 +237,17 @@ class NeuralNetworkTrainer:
             loss.backward()
             optimizer.step()
 
-            # Evaluate the model on validation set
+            # Evaluate the model on the validation set
             model.eval()
             with torch.no_grad():
                 outputs_val = model(X_val_tensor)
-                auc_roc = roc_auc_score(y_val, outputs_val.cpu().numpy())  # Move back to CPU for metric calculation
+                auc_roc = roc_auc_score(y_val, outputs_val.cpu().numpy())  # Move back to CPU for metric calculations
 
             # Update the best model
             if auc_roc > best_auc_roc:
                 best_auc_roc = auc_roc
                 best_model_params = model.state_dict()
+                torch.save(best_model_params, './models/best_model_state_dict.pth')  # Save the best model
 
             sys.stdout.write(f"\rEpoch {epoch+1}/{num_epochs}, AUC-ROC: {auc_roc:.4f}, Best AUC-ROC: {best_auc_roc:.4f}")
             sys.stdout.flush()
@@ -305,19 +335,19 @@ class GeneticAlgorithm:
         return individual
 
     def genetic_algorithm_hyperparameter_optimization(self, 
-                                                      X_train: np.ndarray, 
-                                                      y_train: np.ndarray, 
-                                                      X_val: np.ndarray, 
-                                                      y_val: np.ndarray, 
-                                                      input_size: int, 
-                                                      hidden_sizes: List[int],
-                                                      output_size: int, 
-                                                      population_size: int, 
-                                                      num_generations: int, 
-                                                      mutation_rate: float,
-                                                      learning_rates: Tuple[float, float, float],
-                                                      batch_sizes: Tuple[int, int, int], 
-                                                      num_epochs: int) -> Tuple[Dict[str, Union[int, List[float]]], float, List[float], List[float]]:
+                                                    X_train: np.ndarray, 
+                                                    y_train: np.ndarray, 
+                                                    X_val: np.ndarray, 
+                                                    y_val: np.ndarray, 
+                                                    input_size: int, 
+                                                    hidden_sizes: Tuple[int],
+                                                    output_size: int, 
+                                                    population_size: int, 
+                                                    num_generations: int, 
+                                                    mutation_rate: float,
+                                                    learning_rates: Tuple[float, float, float],
+                                                    batch_sizes: Tuple[int, int, int], 
+                                                    num_epochs: int) -> Tuple[Dict[str, Union[int, List[float]]], float, List[float], List[float]]:
         """
         Perform hyperparameter optimization using a genetic algorithm.
 
@@ -338,16 +368,16 @@ class GeneticAlgorithm:
 
         Returns:
         best_model_params (dict): Parameters of the best model found.
-        best_auc_roc (float): AUC-ROC score of the best model.
+        best_fitness (float): Fitness value of the best model.
         initial_values (list): Initial hyperparameter values.
         optimized_values (list): Optimized hyperparameter values.
         """
-    
+
         # Initialize population
         population = self.initialize_population(population_size, len(hidden_sizes) + 3)  # 3 additional hyperparameters for learning rate, batch size, and hidden layer sizes
 
-        # Initialize best_model_params with initial model parameters
-        best_auc_roc = -1
+        # Initialize best model and fitness
+        best_fitness = -1
         best_model_params = None
 
         # Initialize initial and optimized values
@@ -364,17 +394,23 @@ class GeneticAlgorithm:
                 hidden_layer_sizes = [int(round(size)) for size in hidden_sizes * individual[:-3]]  # Convert hidden layer sizes to integers
                 
                 # Train neural network with the extracted hyperparameters
-                model_params, auc_roc = NeuralNetworkTrainer.train_neural_network(X_train, y_train, X_val, y_val, input_size, hidden_layer_sizes,
-                                                output_size, learning_rate, batch_size, num_epochs, device=device)
+                model_params, evaluation_metrics = NeuralNetworkTrainer().train_neural_network(X_train, y_train, X_val, y_val,
+                                                                                    input_size, hidden_layer_sizes, output_size,
+                                                                                    learning_rate, batch_size, num_epochs)
 
-                fitness_values.append(auc_roc)
+                # Calculate fitness based on multiple evaluation metrics
+                current_fitness = sum(evaluation_metrics.values())
+                fitness_values.append(current_fitness)
 
-                # Update the best model
-                if auc_roc > best_auc_roc:
-                    best_auc_roc = auc_roc
+                # Update the best model based on overall fitness
+                if current_fitness > best_fitness:
+                    best_fitness = current_fitness
                     best_model_params = model_params
+                    torch.save(best_model_params, './models/best_model_state_dict.pth')  # Save the best model
 
-                sys.stdout.write(f"\rGeneration {generation+1}/{num_generations}, Individual {individual_idx+1}/{population_size}, AUC-ROC: {auc_roc:.4f}, Best AUC-ROC: {best_auc_roc:.4f}")
+
+                # Modify the print statement to display all evaluation metrics and best fitness
+                sys.stdout.write(f"\rGeneration {generation+1}/{num_generations}, Individual {individual_idx+1}/{population_size}, Fitness: {current_fitness:.4f}, Best Fitness: {best_fitness:.4f}, Evaluation Metrics: {evaluation_metrics}")
                 sys.stdout.flush()
 
             # Select parents and create new population
@@ -393,7 +429,8 @@ class GeneticAlgorithm:
             if generation == num_generations - 1:
                 optimized_values = population[0][:-3]
 
-        return best_model_params, best_auc_roc, initial_values, optimized_values
+        return best_model_params, best_fitness, initial_values, optimized_values
+
 
 class Visualization:
 
@@ -471,3 +508,36 @@ class Visualization:
         ax.set_yticklabels(['Initial Values', 'Optimized Values'])
         fig.colorbar(im, ax=ax, label='Hyperparameter Values')
         st.pyplot(fig)
+
+    def visualize_hyperparameter_space(learning_rates: List[float], batch_sizes: List[int], performance_metrics: List[float], metric_name: str = 'Accuracy') -> None:
+        # Visualizes the hyperparameter space using a scatter plot
+        """
+        Visualizes the hyperparameter space using a scatter plot.
+
+        Parameters:
+        learning_rates (List[float]): List of learning rates.
+        batch_sizes (List[int]): List of batch sizes.
+        performance_metrics (List[float]): List of performance metrics corresponding to hyperparameter combinations.
+        metric_name (str): Name of the performance metric. Default is 'Accuracy'.
+
+        Returns:
+        None
+        """
+        # Plot scatter plot of hyperparameter space
+        fig = plt.figure(figsize=(10, 8))
+        ax = fig.add_subplot(111, projection='3d')
+
+        # Plot data points
+        ax.scatter(learning_rates, batch_sizes, performance_metrics, c=performance_metrics, cmap='viridis', s=100)
+
+        # Set labels and title
+        ax.set_xlabel('Learning Rate')
+        ax.set_ylabel('Batch Size')
+        ax.set_zlabel(metric_name)
+        ax.set_title('Hyperparameter Space Visualization')
+
+        # Add color bar
+        cbar = plt.colorbar(ax.scatter(learning_rates, batch_sizes, performance_metrics, c=performance_metrics, cmap='viridis'))
+        cbar.set_label(metric_name)
+
+        plt.show()

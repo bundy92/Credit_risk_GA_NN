@@ -7,6 +7,7 @@ from hyper_v4_OOP import DataLoader, ModelTrainer, GeneticAlgorithm, Visualizati
 
 # Turning off the error message
 st.set_option('deprecation.showPyplotGlobalUse', False)
+st.set_page_config(layout="wide")
 
 class CreditRiskAnalysisApp:
     """
@@ -75,7 +76,7 @@ class CreditRiskAnalysisApp:
                     # Perform hyperparameter optimization
                     result = self.genetic_algorithm.genetic_algorithm_hyperparameter_optimization(X_train, y_train, X_val, y_val,
                                                                                                         input_size=X_train.shape[1],
-                                                                                                        hidden_sizes=[128, 64, 32],
+                                                                                                        hidden_sizes=(128, 64, 32), # will change back when works tuple([128, 64, 32])
                                                                                                         output_size=1,
                                                                                                         population_size=population_size,
                                                                                                         num_generations=num_generations,
