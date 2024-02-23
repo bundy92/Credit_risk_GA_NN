@@ -4,7 +4,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import auc, roc_curve
 import shap
-from hyper_v3 import load_data, train_pd_model, evaluate_pd_model, preprocess_data, genetic_algorithm_hyperparameter_optimization, plot_line_plot, plot_bar_chart, plot_heatmap, visualize_hyperparameter_space
+from source.hyper_v3 import load_data, train_pd_model, evaluate_pd_model, preprocess_data, genetic_algorithm_hyperparameter_optimization, plot_line_plot, plot_bar_chart, plot_heatmap, visualize_hyperparameter_space
 
 # Turning off the error message
 st.set_option('deprecation.showPyplotGlobalUse', False)

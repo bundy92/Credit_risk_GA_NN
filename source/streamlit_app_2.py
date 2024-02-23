@@ -3,7 +3,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import auc, roc_curve
 import shap
-from hyper_v4_OOP import DataLoader, ModelTrainer, GeneticAlgorithm, Visualization, NeuralNetworkTrainer
+from source.hyper_v4_OOP import DataLoader, ModelTrainer, GeneticAlgorithm, Visualization, NeuralNetworkTrainer
 
 # Turning off the error message
 st.set_option('deprecation.showPyplotGlobalUse', False)
