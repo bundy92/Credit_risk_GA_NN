@@ -1,7 +1,7 @@
 import unittest
 import torch
 import torch.nn as nn
-from source.hyper_v4_OOP import NeuralNetwork  
+from source.hyper import NeuralNetwork  
 
 class TestNeuralNetwork(unittest.TestCase):
     def setUp(self):

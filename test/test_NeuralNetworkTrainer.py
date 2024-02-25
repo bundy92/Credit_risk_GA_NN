@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.optim as optim
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import roc_auc_score
-from source.hyper_v4_OOP import NeuralNetworkTrainer
+from source.hyper import NeuralNetworkTrainer
 
 class TestNeuralNetworkTrainer(unittest.TestCase):
     def setUp(self):

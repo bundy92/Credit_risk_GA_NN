@@ -3,7 +3,7 @@ import pandas as pd
 from pandas.testing import assert_frame_equal, assert_series_equal
 from sklearn.impute import SimpleImputer
 from typing import Sequence, Union, Tuple
-from source.hyper_v4_OOP import DataLoader
+from source.hyper import DataLoader
 
 class TestDataLoader(unittest.TestCase):
     def setUp(self):

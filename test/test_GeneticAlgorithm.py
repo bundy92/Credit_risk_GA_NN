@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from source.hyper_v4_OOP import GeneticAlgorithm 
+from source.hyper import GeneticAlgorithm 
 
 class TestGeneticAlgorithm(unittest.TestCase):
     def setUp(self):

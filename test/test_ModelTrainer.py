@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
-from source.hyper_v4_OOP import ModelTrainer 
+from source.hyper import ModelTrainer 
 
 class TestModelTrainer(unittest.TestCase):
     def setUp(self):

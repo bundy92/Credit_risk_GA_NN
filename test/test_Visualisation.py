@@ -1,5 +1,5 @@
 import unittest
-from source.hyper_v4_OOP import Visualization 
+from source.hyper import Visualization 
 
 class TestVisualization(unittest.TestCase):
     def setUp(self):
