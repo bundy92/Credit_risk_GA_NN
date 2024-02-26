@@ -7,6 +7,7 @@ from source.hyper import DataLoader, ModelTrainer, GeneticAlgorithm, Visualizati
 
 # Turning off the error message
 st.set_option('deprecation.showPyplotGlobalUse', False)
+# Set page width to wide
 st.set_page_config(layout="wide")
 
 class CreditRiskAnalysisApp:
